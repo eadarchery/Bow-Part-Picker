@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bow Part Picker — Ead Archery</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #293241;
+    --steel: #3d5a80;
+    --sky: #98c1d9;
+    --mint: #e0fbfc;
+    --coral: #ee6c4d;
+    --white: #ffffff;
+    --border: #98c1d9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Lato', Verdana, sans-serif; background: #f4f7f9; color: var(--navy); font-size: 14px; min-height: 100vh; }
+
+  /* ── HEADER ── */
+  .site-header {
+    background: var(--navy);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .site-header h1 { color: var(--white); font-size: 20px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .site-header span { color: var(--sky); font-size: 13px; }
+
+  /* ── NAV ── */
+  .tab-nav { background: var(--steel); display: flex; }
+  .tab-btn { padding: 11px 24px; color: var(--sky); font-size: 13px; font-weight: 700; border: none; background: none; cursor: pointer; letter-spacing: .03em; text-transform: uppercase; border-bottom: 3px solid transparent; transition: all .15s; }
+  .tab-btn.active { color: var(--white); border-bottom-color: var(--coral); background: rgba(0,0,0,.15); }
+  .tab-btn:hover:not(.active) { color: var(--white); background: rgba(0,0,0,.1); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── BUILDER ── */
+  .builder-wrap { display: grid; grid-template-columns: 230px 1fr; gap: 24px; align-items: start; }
+  .steps-col { background: var(--white); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .steps-header { background: var(--steel); padding: 12px 16px; color: var(--white); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .step-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--mint); transition: background .12s; }
+  .step-item:last-child { border-bottom: none; }
+  .step-item:hover:not(.locked) { background: var(--mint); }
+  .step-item.active { background: var(--mint); border-left: 3px solid var(--steel); }
+  .step-item.locked { opacity: .4; cursor: not-allowed; }
+  .step-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--sky); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--steel); flex-shrink: 0; }
+  .step-item.done .step-dot { background: var(--steel); border-color: var(--steel); color: var(--white); }
+  .step-item.active .step-dot { border-color: var(--coral); color: var(--coral); }
+  .step-label { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .step-val { font-size: 11px; color: var(--steel); margin-top: 1px; }
+
+  /* ── PANEL ── */
+  .part-panel { background: var(--white); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .panel-head { background: var(--navy); padding: 14px 18px; }
+  .panel-head h2 { color: var(--white); font-size: 15px; font-weight: 700; }
+  .panel-head p { color: var(--sky); font-size: 12px; margin-top: 2px; }
+  .panel-body { padding: 18px; }
+  .parts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .part-card { border: 1.5px solid var(--border); border-radius: 6px; padding: 12px; cursor: pointer; transition: all .12s; position: relative; background: var(--white); }
+  .part-card:hover:not(.incompatible) { border-color: var(--steel); background: var(--mint); }
+  .part-card.selected { border: 2px solid var(--coral); background: #fff8f6; }
+  .part-card.incompatible { opacity: .38; cursor: not-allowed; }
+  .part-name { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .part-brand { font-size: 11px; color: var(--steel); margin-bottom: 6px; }
+  .part-price { font-size: 13px; font-weight: 700; color: var(--coral); margin-top: 6px; }
+  .part-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+  .tag { font-size: 10px; padding: 2px 6px; border-radius: 20px; background: var(--mint); color: var(--steel); border: 1px solid var(--sky); }
+  .compat-reason { font-size: 10px; color: #c0392b; margin-top: 4px; }
+  .sel-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; background: var(--coral); color: var(--white); padding: 2px 6px; border-radius: 20px; font-weight: 700; }
+  .incompat-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; background: #fde8e8; color: #c0392b; padding: 2px 6px; border-radius: 20px; }
+  .info-box { background: var(--mint); border-left: 4px solid var(--steel); padding: 10px 14px; border-radius: 4px; font-size: 13px; color: var(--navy); margin-bottom: 14px; }
+  .info-box strong { color: var(--steel); }
+  .skip-msg { padding: 12px 0; }
+  .btn { padding: 9px 20px; font-size: 13px; font-weight: 700; border-radius: 5px; border: none; cursor: pointer; transition: all .12s; text-transform: uppercase; letter-spacing: .04em; }
+  .btn-primary { background: var(--coral); color: var(--white); }
+  .btn-primary:hover { opacity: .88; }
+  .btn-secondary { background: var(--steel); color: var(--white); }
+  .btn-secondary:hover { opacity: .88; }
+  .btn-outline { background: none; border: 1.5px solid var(--steel); color: var(--steel); }
+  .btn-outline:hover { background: var(--mint); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+
+  /* ── SUMMARY ── */
+  .summary-wrap { margin-top: 20px; background: var(--white); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .summary-head { background: var(--steel); padding: 10px 16px; color: var(--white); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid var(--mint); }
+  .summary-row:last-child { border-bottom: none; }
+  .s-label { font-size: 11px; color: var(--steel); text-transform: uppercase; letter-spacing: .04em; }
+  .s-val { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .s-price { font-size: 13px; color: var(--coral); font-weight: 700; }
+  .summary-total { background: var(--navy); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .summary-total span { color: var(--white); font-weight: 700; font-size: 14px; }
+  .summary-total .total-price { color: var(--coral); font-size: 18px; }
+  .reset-bar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+
+  /* ── ADMIN ── */
+  .admin-wrap { display: grid; grid-template-columns: 190px 1fr; gap: 24px; align-items: start; }
+  .admin-menu { background: var(--white); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .admin-menu-head { background: var(--navy); padding: 12px 16px; color: var(--white); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .admin-menu-item { padding: 10px 14px; font-size: 13px; font-weight: 700; color: var(--steel); cursor: pointer; border-bottom: 1px solid var(--mint); transition: background .12s; }
+  .admin-menu-item:last-child { border-bottom: none; }
+  .admin-menu-item:hover { background: var(--mint); }
+  .admin-menu-item.active { background: var(--mint); color: var(--navy); border-left: 3px solid var(--coral); }
+  .admin-panel { background: var(--white); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .admin-panel-head { background: var(--steel); padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+  .admin-panel-head h3 { color: var(--white); font-size: 14px; font-weight: 700; }
+  .admin-body { padding: 18px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: left; padding: 8px 10px; background: var(--sky); color: var(--navy); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-bottom: 2px solid var(--steel); }
+  .data-table td { padding: 8px 10px; border-bottom: 1px solid var(--mint); color: var(--navy); }
+  .data-table tr:nth-child(even) td { background: var(--mint); }
+  .data-table tr:hover td { background: #d4f5f6; }
+  .no-data { padding: 20px; text-align: center; color: var(--steel); font-size: 13px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(41,50,65,.55); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .modal { background: var(--white); border-radius: 8px; width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(41,50,65,.25); }
+  .modal-head { background: var(--navy); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px 8px 0 0; }
+  .modal-head h3 { color: var(--white); font-size: 15px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--sky); font-size: 20px; cursor: pointer; line-height: 1; }
+  .modal-body { padding: 20px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 11px; font-weight: 700; color: var(--steel); text-transform: uppercase; letter-spacing: .04em; }
+  .form-group input, .form-group select { padding: 8px 10px; font-size: 13px; border: 1.5px solid var(--sky); border-radius: 4px; color: var(--navy); font-family: 'Lato', sans-serif; }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--steel); }
+  .form-group .checkbox-wrap { display: flex; align-items: center; gap: 6px; padding: 6px 0; }
+  .form-group .checkbox-wrap input { width: auto; }
+  .multi-check { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+  .multi-check label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--navy); font-weight: 400; cursor: pointer; }
+  .modal-foot { padding: 14px 20px; border-top: 1px solid var(--mint); display: flex; justify-content: flex-end; gap: 10px; background: #fafafa; border-radius: 0 0 8px 8px; }
+  #modal-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 998; pointer-events: none; }
+  #modal-container .modal-overlay { pointer-events: all; }
+
+  @media (max-width: 680px) {
+    .builder-wrap, .admin-wrap { grid-template-columns: 1fr; }
+    .parts-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <h1>⟶ Bow Part Picker</h1>
+  <span>Ead Archery — Build your perfect setup</span>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="showPage('builder', this)">🎯 Build My Bow</button>
+  <button class="tab-btn" onclick="showPage('admin', this)">⚙️ Admin — Equipment</button>
+</div>
+
+<div class="container">
+
+  <!-- BUILDER PAGE -->
+  <div class="page active" id="page-builder">
+    <div class="reset-bar">
+      <button class="btn btn-outline btn-sm" onclick="resetBuild()">↺ Start Over</button>
+    </div>
+    <div class="builder-wrap">
+      <div class="steps-col">
+        <div class="steps-header">Your Build</div>
+        <div id="steps-sidebar"></div>
+      </div>
+      <div>
+        <div class="part-panel">
+          <div class="panel-head" id="panel-head">
+            <h2>Select Riser</h2>
+            <p>Choose your bow type and limb fitting system</p>
+          </div>
+          <div class="panel-body" id="panel-body"></div>
+        </div>
+        <div id="summary-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div class="page" id="page-admin">
+    <div class="admin-wrap">
+      <div class="admin-menu">
+        <div class="admin-menu-head">Equipment</div>
+        <div id="admin-menu-items"></div>
+      </div>
+      <div class="admin-panel">
+        <div class="admin-panel-head">
+          <h3 id="admin-section-title">Risers</h3>
+          <button class="btn btn-primary btn-sm" id="admin-add-btn" onclick="openAddModal()">+ Add Item</button>
+        </div>
+        <div class="admin-body">
+          <div id="admin-table-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA STORE
+// ─────────────────────────────────────────────
+const KEY = 'eadarchery_picker_v1';
+const defaultDB = {
+  risers: [
+    {id:'r1',name:'Hoyt Formula Excel',brand:'Hoyt',bowType:'recurve',limbFit:'Formula',riserLength:25,sightMount:'threaded',plungerHole:true,stabBushing:'5/16 UNF',price:680},
+    {id:'r2',name:'W&W Nano XT',brand:'Win&Win',bowType:'recurve',limbFit:'ILF',riserLength:25,sightMount:'threaded',plungerHole:true,stabBushing:'5/16 UNF',price:620},
+    {id:'r3',name:'Mybo Edge 25"',brand:'Mybo',bowType:'recurve',limbFit:'ILF',riserLength:25,sightMount:'threaded',plungerHole:true,stabBushing:'5/16 UNF',price:390},
+    {id:'r4',name:'Mybo Edge 27"',brand:'Mybo',bowType:'recurve',limbFit:'ILF',riserLength:27,sightMount:'threaded',plungerHole:true,stabBushing:'5/16 UNF',price:410},
+    {id:'r5',name:'Bear Cruzer G3',brand:'Bear',bowType:'compound',limbFit:'proprietary',riserLength:0,sightMount:'dovetail',plungerHole:false,stabBushing:'5/16 UNF',price:450},
+  ],
+  limbs: [
+    {id:'l1',name:'Formula Carbon Quattro',brand:'Hoyt',limbFit:'Formula',limbLength:'medium',drawWeight:'30-40',price:580},
+    {id:'l2',name:'Formula Carbon Quattro',brand:'Hoyt',limbFit:'Formula',limbLength:'long',drawWeight:'26-36',price:580},
+    {id:'l3',name:'Wiawis NS Carbon',brand:'Win&Win',limbFit:'ILF',limbLength:'medium',drawWeight:'24-30',price:480},
+    {id:'l4',name:'SF Axiom+',brand:'SF',limbFit:'ILF',limbLength:'short',drawWeight:'20-28',price:110},
+    {id:'l5',name:'SF Axiom+',brand:'SF',limbFit:'ILF',limbLength:'medium',drawWeight:'22-32',price:110},
+    {id:'l6',name:'SF Axiom+',brand:'SF',limbFit:'ILF',limbLength:'long',drawWeight:'26-38',price:110},
+  ],
+  sights: [
+    {id:'s1',name:'Shibuya Ultima RC',brand:'Shibuya',bowTypes:'recurve',mountTypes:'threaded',price:280},
+    {id:'s2',name:'Sure-Loc Supreme 400',brand:'Sure-Loc',bowTypes:'compound',mountTypes:'dovetail',price:320},
+    {id:'s3',name:'Axcel Achieve XP',brand:'Axcel',bowTypes:'recurve,compound',mountTypes:'threaded,dovetail',price:210},
+    {id:'s4',name:'Spot Hogg Fast Eddie XL',brand:'Spot Hogg',bowTypes:'compound',mountTypes:'dovetail',price:390},
+  ],
+  rests: [
+    {id:'re1',name:'Shibuya Ultima Rest',brand:'Shibuya',bowTypes:'recurve',restType:'blade',requiresPlunger:false,price:45},
+    {id:'re2',name:'AAE Cavalier Elite',brand:'AAE',bowTypes:'recurve',restType:'magnetic flip',requiresPlunger:false,price:68},
+    {id:'re3',name:'QAD Ultra Rest HDX',brand:'QAD',bowTypes:'compound',restType:'drop-away',requiresPlunger:false,price:195},
+    {id:'re4',name:'Whisker Biscuit',brand:'Trophy Ridge',bowTypes:'compound',restType:'containment',requiresPlunger:false,price:55},
+  ],
+  plungers: [
+    {id:'p1',name:'Beiter Centralizer',brand:'Beiter',price:95},
+    {id:'p2',name:'Shibuya DX Plunger',brand:'Shibuya',price:62},
+    {id:'p3',name:'AAE Plunger',brand:'AAE',price:38},
+  ],
+  stabilizers: [
+    {id:'st1',name:'Doinker Champion 30"',brand:'Doinker',stabType:'front',lengthIn:30,thread:'5/16 UNF',price:145},
+    {id:'st2',name:'Easton Contour 30"',brand:'Easton',stabType:'front',lengthIn:30,thread:'5/16 UNF',price:98},
+    {id:'st3',name:'Doinker V-Bar Kit',brand:'Doinker',stabType:'side',lengthIn:12,thread:'5/16 UNF',price:89},
+    {id:'st4',name:'B-Stinger Sport 8"',brand:'B-Stinger',stabType:'front',lengthIn:8,thread:'5/16 UNF',price:79},
+  ],
+  strings: [
+    {id:'str1',name:'BCY 8125G 58"',material:'BCY 8125G',lengthIn:58,price:28},
+    {id:'str2',name:'BCY 8125G 60"',material:'BCY 8125G',lengthIn:60,price:28},
+    {id:'str3',name:'BCY 8125G 62"',material:'BCY 8125G',lengthIn:62,price:28},
+    {id:'str4',name:'FastFlight 60"',material:'FastFlight',lengthIn:60,price:32},
+    {id:'str5',name:'FastFlight 62"',material:'FastFlight',lengthIn:62,price:32},
+    {id:'str6',name:'FastFlight 64"',material:'FastFlight',lengthIn:64,price:32},
+  ]
+};
+
+let DB = JSON.parse(localStorage.getItem(KEY) || 'null') || JSON.parse(JSON.stringify(defaultDB));
+function saveDB(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+
+// ─────────────────────────────────────────────
+// BOW LENGTH TABLE (riserLength + limbLength → bowLength)
+// String = bowLength - 4 (AMO standard)
+// ─────────────────────────────────────────────
+const BOW_LEN = {
+  '23-short':62,'23-medium':64,'23-long':66,
+  '25-short':64,'25-medium':66,'25-long':68,
+  '27-short':66,'27-medium':68,'27-long':70,
+};
+function getBowLen(r,l){ return r&&l ? (BOW_LEN[r.riserLength+'-'+l.limbLength]||null) : null; }
+function getStringLen(bowLen){ return bowLen ? bowLen-4 : null; }
+function toRM(usd){ return 'RM '+(usd*4.7).toFixed(0); }
+
+// ─────────────────────────────────────────────
+// BUILD STATE
+// ─────────────────────────────────────────────
+let build = {riser:null,limbs:null,sight:null,rest:null,plunger:null,stabilizer:null,string:null};
+let currentStep = 'riser';
+let currentAdmin = 'risers';
+
+const STEPS = [
+  {key:'riser',     label:'Riser',          desc:'Bow type & limb fit system'},
+  {key:'limbs',     label:'Limbs',          desc:'Must match riser limb fit'},
+  {key:'sight',     label:'Sight',          desc:'Filtered by bow type & mount'},
+  {key:'rest',      label:'Arrow Rest',     desc:'Filtered by bow type'},
+  {key:'plunger',   label:'Plunger Button', desc:'Only if riser has plunger hole'},
+  {key:'stabilizer',label:'Stabilizer',     desc:'Matched by thread standard'},
+  {key:'string',    label:'String',         desc:'Auto-calculated from bow length'},
+];
+
+// ─────────────────────────────────────────────
+// COMPAT ENGINE
+// ─────────────────────────────────────────────
+function getCompatParts(step){
+  const r = build.riser, l = build.limbs;
+  const arr = (k) => DB[k] || [];
+  switch(step){
+    case 'riser': return arr('risers').map(p=>({...p,ok:true,reason:''}));
+    case 'limbs':
+      if(!r) return arr('limbs').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      if(r.bowType==='compound') return arr('limbs').map(p=>({...p,ok:false,reason:'Compound limbs are fixed to riser'}));
+      return arr('limbs').map(p=>{
+        const ok = p.limbFit===r.limbFit;
+        return {...p,ok,reason:ok?'':'Requires '+r.limbFit+' fit — this is '+p.limbFit};
+      });
+    case 'sight':
+      if(!r) return arr('sights').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      return arr('sights').map(p=>{
+        const types = (p.bowTypes||'').split(',').map(s=>s.trim());
+        const mounts = (p.mountTypes||'').split(',').map(s=>s.trim());
+        const typeOk = types.includes(r.bowType);
+        const mountOk = mounts.includes(r.sightMount);
+        const ok = typeOk && mountOk;
+        let reason = '';
+        if(!typeOk) reason = 'For '+types.join('/')+' only';
+        else if(!mountOk) reason = 'Needs '+mounts.join('/')+' mount; riser is '+r.sightMount;
+        return {...p,ok,reason};
+      });
+    case 'rest':
+      if(!r) return arr('rests').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      return arr('rests').map(p=>{
+        const types = (p.bowTypes||'').split(',').map(s=>s.trim());
+        const ok = types.includes(r.bowType);
+        return {...p,ok,reason:ok?'':'For '+(p.bowTypes||'?')+' only'};
+      });
+    case 'plunger':
+      if(!r) return arr('plungers').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      if(!r.plungerHole) return arr('plungers').map(p=>({...p,ok:false,reason:'Riser has no plunger hole'}));
+      return arr('plungers').map(p=>({...p,ok:true,reason:''}));
+    case 'stabilizer':
+      if(!r) return arr('stabilizers').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      return arr('stabilizers').map(p=>{
+        const ok = p.thread===r.stabBushing;
+        return {...p,ok,reason:ok?'':'Thread mismatch: '+p.thread+' vs '+r.stabBushing};
+      });
+    case 'string':
+      if(!r) return arr('strings').map(p=>({...p,ok:false,reason:'Select a riser first'}));
+      if(r.bowType==='compound') return arr('strings').map(p=>({...p,ok:false,reason:'Compound strings are bow-specific — check cam specs'}));
+      const bLen = getBowLen(r,l);
+      const sLen = getStringLen(bLen);
+      return arr('strings').map(p=>{
+        if(!l) return {...p,ok:false,reason:'Select limbs to calculate string length'};
+        if(!bLen) return {...p,ok:false,reason:'Bow length not in table'};
+        const ok = p.lengthIn===sLen;
+        return {...p,ok,reason:ok?'':'Need '+sLen+'" string for this setup'};
+      });
+    default: return [];
+  }
+}
+
+function isUnlocked(step){
+  if(step==='riser') return true;
+  if(step==='limbs') return !!build.riser && build.riser.bowType==='recurve';
+  if(step==='plunger') return !!build.riser && build.riser.plungerHole;
+  return !!build.riser;
+}
+
+function getSkipReason(step){
+  if(step==='limbs' && build.riser && build.riser.bowType==='compound') return 'Compound bow limbs are fixed to the riser — skip this step.';
+  if(step==='plunger' && build.riser && !build.riser.plungerHole) return 'Your riser has no plunger hole — plunger button not applicable.';
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// RENDER BUILDER
+// ─────────────────────────────────────────────
+function renderBuilder(){
+  renderSidebar();
+  renderPanel();
+  renderSummary();
+}
+
+function renderSidebar(){
+  const el = document.getElementById('steps-sidebar');
+  el.innerHTML = STEPS.map((s,i)=>{
+    const val = build[s.key];
+    const unlocked = isUnlocked(s.key);
+    const done = !!val;
+    let cls = 'step-item';
+    if(s.key===currentStep) cls+=' active';
+    if(done) cls+=' done';
+    if(!unlocked) cls+=' locked';
+    const dot = done ? '✓' : (i+1);
+    const onclick = unlocked ? `onclick="setStep('${s.key}')"` : '';
+    const valLabel = val ? `<div class="step-val">${val.name || (val.lengthIn+'"')}</div>` : '';
+    return `<div class="${cls}" ${onclick}><div class="step-dot">${dot}</div><div><div class="step-label">${s.label}</div>${valLabel}</div></div>`;
+  }).join('');
+}
+
+function renderPanel(){
+  const s = STEPS.find(x=>x.key===currentStep);
+  document.getElementById('panel-head').innerHTML = `<h2>${s.label}</h2><p>${s.desc}</p>`;
+  const body = document.getElementById('panel-body');
+  const parts = getCompatParts(currentStep);
+  const skipReason = getSkipReason(currentStep);
+
+  const r = build.riser, l = build.limbs;
+  let hint = '';
+  if(currentStep==='string' && r && r.bowType==='recurve'){
+    const bLen = getBowLen(r,l);
+    const sLen = getStringLen(bLen);
+    if(bLen) hint = `<div class="info-box">Bow length: <strong>${bLen}"</strong> (${r.riserLength}" riser + ${l.limbLength} limbs) → String needed: <strong>${sLen}"</strong></div>`;
+    else if(!l) hint = `<div class="info-box">Select your limbs first to auto-calculate string length.</div>`;
+  }
+  if(currentStep==='string' && r && r.bowType==='compound'){
+    hint = `<div class="info-box">Compound bow strings are cam-specific. Check your bow manual for the correct string length.</div>`;
+  }
+
+  if(skipReason){
+    body.innerHTML = `${hint}<div class="info-box skip-msg">${skipReason}</div><button class="btn btn-secondary" onclick="nextStep()">Continue →</button>`;
+    return;
+  }
+
+  const cards = parts.map(p=>{
+    const sel = build[currentStep] && build[currentStep].id===p.id;
+    const tags = getPartTags(currentStep,p).map(t=>`<span class="tag">${t}</span>`).join('');
+    return `<div class="part-card ${p.ok?'':'incompatible'} ${sel?'selected':''}" ${p.ok?`onclick="selectPart('${currentStep}','${p.id}')"`:''}>${sel?'<span class="sel-badge">✓ Selected</span>':''}${!p.ok?'<span class="incompat-badge">✗</span>':''}
+      <div class="part-name">${p.name}</div>
+      <div class="part-brand">${p.brand}</div>
+      <div class="part-tags">${tags}</div>
+      ${!p.ok&&p.reason?`<div class="compat-reason">${p.reason}</div>`:''}
+      <div class="part-price">${toRM(p.price)}</div>
+    </div>`;
+  }).join('');
+  body.innerHTML = `${hint}<div class="parts-grid">${cards}</div>`;
+}
+
+function getPartTags(step,p){
+  switch(step){
+    case 'riser': return [p.bowType, p.limbFit, p.riserLength?p.riserLength+'"':'', p.plungerHole?'plunger hole':''].filter(Boolean);
+    case 'limbs': return [p.limbFit, p.limbLength, p.drawWeight+'#'];
+    case 'sight': return (p.bowTypes||'').split(',').concat((p.mountTypes||'').split(',')).map(s=>s.trim()).filter(Boolean);
+    case 'rest': return [(p.bowTypes||''), p.restType].filter(Boolean);
+    case 'stabilizer': return [p.stabType, p.lengthIn+'"', p.thread];
+    case 'string': return [p.lengthIn+'"', p.material];
+    default: return [];
+  }
+}
+
+function renderSummary(){
+  const el = document.getElementById('summary-wrap');
+  const entries = Object.entries(build).filter(([,v])=>v);
+  if(!entries.length){ el.innerHTML=''; return; }
+  let total = 0;
+  const rows = entries.map(([k,v])=>{
+    total += v.price||0;
+    const lbl = STEPS.find(s=>s.key===k)?.label||k;
+    return `<div class="summary-row"><div><div class="s-label">${lbl}</div><div class="s-val">${v.name||v.lengthIn+'" string'}</div></div><div class="s-price">${toRM(v.price)}</div></div>`;
+  }).join('');
+  el.innerHTML = `<div class="summary-wrap"><div class="summary-head">Your Setup</div>${rows}<div class="summary-total"><span>Total Estimated Cost</span><span class="total-price">${toRM(total)}</span></div></div>`;
+}
+
+function selectPart(step, id){
+  const colKey = {riser:'risers',limbs:'limbs',sight:'sights',rest:'rests',plunger:'plungers',stabilizer:'stabilizers',string:'strings'}[step];
+  build[step] = (DB[colKey]||[]).find(p=>p.id===id)||null;
+  const order = STEPS.map(s=>s.key);
+  const idx = order.indexOf(step);
+  order.slice(idx+1).forEach(k=>{ build[k]=null; });
+  nextStep();
+}
+
+function nextStep(){
+  const order = STEPS.map(s=>s.key);
+  const idx = order.indexOf(currentStep);
+  if(idx < order.length-1) currentStep = order[idx+1];
+  renderBuilder();
+}
+
+function setStep(s){ currentStep=s; renderBuilder(); }
+function resetBuild(){ build={riser:null,limbs:null,sight:null,rest:null,plunger:null,stabilizer:null,string:null}; currentStep='riser'; renderBuilder(); }
+
+// ─────────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────────
+const ADMIN = {
+  risers: {
+    label:'Risers',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},
+      {k:'bowType',l:'Bow Type',t:'select',opts:['recurve','compound']},
+      {k:'limbFit',l:'Limb Fit',t:'select',opts:['ILF','Formula','proprietary','screw-in']},
+      {k:'riserLength',l:'Riser Length (in)',t:'number'},
+      {k:'sightMount',l:'Sight Mount',t:'select',opts:['threaded','dovetail']},
+      {k:'plungerHole',l:'Has Plunger Hole',t:'checkbox'},
+      {k:'stabBushing',l:'Stabilizer Bushing',t:'select',opts:['5/16 UNF','M10','M8']},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Bow Type','Limb Fit','Riser','Plunger','Price'],
+    row:r=>[r.name,r.brand,r.bowType,r.limbFit,r.riserLength?r.riserLength+'"':'N/A',r.plungerHole?'Yes':'No',toRM(r.price)],
+  },
+  limbs: {
+    label:'Limbs',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},
+      {k:'limbFit',l:'Limb Fit',t:'select',opts:['ILF','Formula','proprietary','screw-in']},
+      {k:'limbLength',l:'Limb Length',t:'select',opts:['short','medium','long']},
+      {k:'drawWeight',l:'Draw Weight Range (e.g. 26-36)',t:'text'},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Fit','Length','Draw Weight','Price'],
+    row:r=>[r.name,r.brand,r.limbFit,r.limbLength,r.drawWeight+'#',toRM(r.price)],
+  },
+  sights: {
+    label:'Sights',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},
+      {k:'bowTypes',l:'Bow Types (comma separated)',t:'text'},
+      {k:'mountTypes',l:'Mount Types (comma separated)',t:'text'},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Bow Types','Mount Types','Price'],
+    row:r=>[r.name,r.brand,r.bowTypes,r.mountTypes,toRM(r.price)],
+  },
+  rests: {
+    label:'Arrow Rests',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},
+      {k:'bowTypes',l:'Bow Types (comma separated)',t:'text'},
+      {k:'restType',l:'Rest Type',t:'select',opts:['blade','magnetic flip','drop-away','containment','shoot-through']},
+      {k:'requiresPlunger',l:'Requires Plunger Hole',t:'checkbox'},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Bow Types','Rest Type','Price'],
+    row:r=>[r.name,r.brand,r.bowTypes,r.restType,toRM(r.price)],
+  },
+  plungers: {
+    label:'Plunger Buttons',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},{k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Price'],
+    row:r=>[r.name,r.brand,toRM(r.price)],
+  },
+  stabilizers: {
+    label:'Stabilizers',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'brand',l:'Brand',t:'text'},
+      {k:'stabType',l:'Type',t:'select',opts:['front','side','back']},
+      {k:'lengthIn',l:'Length (in)',t:'number'},
+      {k:'thread',l:'Thread',t:'select',opts:['5/16 UNF','M10','M8']},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Brand','Type','Length','Thread','Price'],
+    row:r=>[r.name,r.brand,r.stabType,r.lengthIn+'"',r.thread,toRM(r.price)],
+  },
+  strings: {
+    label:'Strings',
+    fields:[
+      {k:'name',l:'Name',t:'text'},{k:'material',l:'Material',t:'text'},
+      {k:'lengthIn',l:'Length (in)',t:'number'},
+      {k:'price',l:'Price (USD)',t:'number'},
+    ],
+    cols:['Name','Material','Length','Price'],
+    row:r=>[r.name,r.material,r.lengthIn+'"',toRM(r.price)],
+  },
+};
+
+function renderAdminMenu(){
+  document.getElementById('admin-menu-items').innerHTML = Object.entries(ADMIN).map(([k,v])=>
+    `<div class="admin-menu-item ${k===currentAdmin?'active':''}" onclick="setAdmin('${k}')">${v.label}</div>`
+  ).join('');
+}
+
+function renderAdminTable(){
+  const cfg = ADMIN[currentAdmin];
+  document.getElementById('admin-section-title').textContent = cfg.label;
+  document.getElementById('admin-add-btn').onclick = openAddModal;
+  const items = DB[currentAdmin]||[];
+  const thead = cfg.cols.map(c=>`<th>${c}</th>`).join('');
+  const tbody = items.length ? items.map(item=>{
+    const cells = cfg.row(item).map(c=>`<td>${c}</td>`).join('');
+    return `<tr>${cells}<td><button class="btn btn-outline btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="deleteItem('${item.id}')">Delete</button></td></tr>`;
+  }).join('') : `<tr><td colspan="${cfg.cols.length+1}" class="no-data">No items yet — click "+ Add Item" to get started.</td></tr>`;
+  document.getElementById('admin-table-wrap').innerHTML = `<table class="data-table"><thead><tr>${thead}<th></th></tr></thead><tbody>${tbody}</tbody></table>`;
+}
+
+function setAdmin(k){ currentAdmin=k; renderAdminMenu(); renderAdminTable(); }
+
+function openAddModal(){
+  const cfg = ADMIN[currentAdmin];
+  const fields = cfg.fields.map(f=>{
+    if(f.t==='select') return `<div class="form-group"><label>${f.l}</label><select id="af_${f.k}">${f.opts.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    if(f.t==='checkbox') return `<div class="form-group"><label>${f.l}</label><div class="checkbox-wrap"><input type="checkbox" id="af_${f.k}"> Yes</div></div>`;
+    return `<div class="form-group"><label>${f.l}</label><input type="${f.t}" id="af_${f.k}" placeholder="${f.l}"></div>`;
+  });
+  const rows = [];
+  for(let i=0;i<fields.length;i+=2){
+    rows.push(`<div class="form-row ${i+1>=fields.length?'form-full':''}">${fields[i]}${i+1<fields.length?fields[i+1]:''}</div>`);
+  }
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-head"><h3>Add ${cfg.label.replace(/s$/,'')}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+        <div class="modal-body">${rows.join('')}</div>
+        <div class="modal-foot"><button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveItem()">Save</button></div>
+      </div>
+    </div>`;
+}
+
+function saveItem(){
+  const cfg = ADMIN[currentAdmin];
+  const item = {id:'i'+Date.now()};
+  for(const f of cfg.fields){
+    const el = document.getElementById('af_'+f.k);
+    if(!el) continue;
+    if(f.t==='checkbox') item[f.k]=el.checked;
+    else if(f.t==='number') item[f.k]=parseFloat(el.value)||0;
+    else item[f.k]=el.value.trim();
+  }
+  if(!DB[currentAdmin]) DB[currentAdmin]=[];
+  DB[currentAdmin].push(item);
+  saveDB();
+  closeModal();
+  renderAdminTable();
+}
+
+function deleteItem(id){
+  if(!confirm('Delete this item?')) return;
+  DB[currentAdmin]=(DB[currentAdmin]||[]).filter(i=>i.id!==id);
+  saveDB();
+  renderAdminTable();
+}
+
+function closeModal(){ document.getElementById('modal-container').innerHTML=''; }
+
+// ─────────────────────────────────────────────
+// PAGE NAV
+// ─────────────────────────────────────────────
+function showPage(p, btn){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(p==='admin'){ renderAdminMenu(); renderAdminTable(); }
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+renderBuilder();
+</script>
+</body>
+</html>
